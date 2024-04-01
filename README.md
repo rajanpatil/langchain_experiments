@@ -39,6 +39,6 @@ AZURE_35_DEPLOYMENT_NAME=""
 ### How to run experiments
 
 ```shell
-# python <experiment_script_python_file_name>
-python tools_agent_for_maths.py
+# python ./experiments/<experiment_script_python_file_name>
+python ./experiments/tools_agent_for_maths.py
 ```

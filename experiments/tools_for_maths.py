@@ -1,12 +1,15 @@
+#
+# As part of this experiment, we are trying to use function calling to solve maths problem using tools.
+#
 import os
 from typing import Type
 
 # import from .env
 from dotenv import load_dotenv
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, \
-    MessagesPlaceholder
+from langchain.chains.llm import LLMChain
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.tools import BaseTool
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain_openai import AzureChatOpenAI
 from pydantic import BaseModel
 
@@ -69,28 +72,27 @@ tools = [Add(), Multiply(), Exponentiate()]
 
 # Get the prompt to use - you can modify this!
 prompt = ChatPromptTemplate.from_messages(
-    [SystemMessagePromptTemplate.from_template("You are a helpful assistant"),
-     HumanMessagePromptTemplate.from_template("{input}"),
-     MessagesPlaceholder(variable_name="agent_scratchpad")])
+    [SystemMessagePromptTemplate.from_template(template="You are a helpful assistant."),
+     HumanMessagePromptTemplate.from_template(template="{input}", input_variables=["input"])
+     ])
 
 # Choose the LLM that will drive the agent
 model = AzureChatOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_URL_BASE"),
     openai_api_key=os.getenv("OPENAI_ORGANIZATION_KEY"),
     openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
-    deployment_name=os.getenv("AZURE_35_DEPLOYMENT_NAME")
+    deployment_name=os.getenv("AZURE_35_DEPLOYMENT_NAME"),
+    model_kwargs={"tools": [convert_to_openai_tool(tool) for tool in tools]}
 )
 
-# Construct the OpenAI Tools agent
-agent = create_openai_tools_agent(llm=model, tools=tools, prompt=prompt)
-
-# Create an agent executor by passing in the agent and tools
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-
-response = agent_executor.invoke(
+chain = LLMChain(llm=model, prompt=prompt, return_final_only=False, verbose=True)
+chain_response = chain.invoke(
     {
         "input": "Take 3 to the fifth power and multiply that by the sum of twelve and three, then square the whole result"
     }
 )
+print(f"Chain response: {chain_response}")
 
-print(response)
+model_response = model.invoke(
+    "Take 3 to the fifth power and multiply that by the sum of twelve and three, then square the whole result")
+print(f"Model response: {model_response}")
